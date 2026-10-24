@@ -1,6 +1,5 @@
 const express = require('express')
 const path = require('path')
-const { get } = require('request')
 
 const app = express()
 
@@ -40,34 +39,22 @@ app.post('/fetch_external_image', async (req, res) => {
     return res.status(400).send('imageUrl param required')
   }
   try {
-    const externalResponse = await request(imageUrl)
-    res.set('content-type', externalResponse.headers['content-type'])
-    return res.status(202).send(Buffer.from(externalResponse.body))
+    const response = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
+      }
+    })
+    if (!response.ok) {
+      return res.status(response.status).send(`Failed to fetch image: ${response.statusText}`)
+    }
+    const contentType = response.headers.get('content-type') || 'image/jpeg'
+    const arrayBuffer = await response.arrayBuffer()
+    res.set('content-type', contentType)
+    return res.status(202).send(Buffer.from(arrayBuffer))
   } catch (err) {
     return res.status(404).send(err.toString())
   }
 })
 
-app.listen(3000, () => console.log('Listening on port 3000!'))
-
-function request(url, returnBuffer = true, timeout = 10000) {
-  return new Promise(function(resolve, reject) {
-    const options = Object.assign(
-      {},
-      {
-        url,
-        isBuffer: true,
-        timeout,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
-        }
-      },
-      returnBuffer ? { encoding: null } : {}
-    )
-
-    get(options, function(err, res) {
-      if (err) return reject(err)
-      return resolve(res)
-    })
-  })
-}
+const PORT = process.env.PORT || 3000
+app.listen(PORT, '0.0.0.0', () => console.log(`Listening on port ${PORT}!`))
